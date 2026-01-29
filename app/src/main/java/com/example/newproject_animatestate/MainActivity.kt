@@ -3,13 +3,24 @@ package com.example.newproject_animatestate
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.animateColor
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.Spring.DampingRatioHighBouncy
+import androidx.compose.animation.core.Spring.StiffnessVeryLow
+import androidx.compose.animation.core.animateDp
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.keyframes
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.*
@@ -36,15 +47,22 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            Column {
-                RotationDemo()
-                ColorChangeDemo()
-                MotionDemo()
-            }
+            MainScreen()
         }
     }
 }
-
+@Composable
+fun MainScreen(){
+    val scrollState =rememberScrollState()
+    Column(
+        Modifier.verticalScroll(scrollState)
+    ){
+        RotationDemo()
+        ColorChangeDemo()
+        MotionDemo()
+        TransitionDemo()
+    }
+}
 @Composable
 fun MotionDemo() {
     var boxState by remember { mutableStateOf(BoxPosition.Start) }
@@ -55,7 +73,15 @@ fun MotionDemo() {
            BoxPosition.Start->0.dp
            BoxPosition.End -> screenWidth-boxSideLength
        },
-        animationSpec=tween(500),label="Motion"
+        //animationSpec=tween(500),label="Motion"
+        animationSpec=spring(dampingRatio=DampingRatioHighBouncy,
+            stiffness=StiffnessVeryLow), label="Motion"
+        /*animationSpec=keyframes{
+            durationMillis=1000
+            100.dp.at(10)
+            110.dp.at(500)
+            200.dp.at(700)
+        }*/
     )
     Column(modifier = Modifier.fillMaxWidth()) {
         Box(
@@ -79,7 +105,53 @@ fun MotionDemo() {
         }
     }
 }
-
+@Composable
+fun TransitionDemo(){
+    var boxState by remember{mutableStateOf(BoxPosition.Start)}
+    val screenWidth=LocalConfiguration.current.screenWidthDp.dp
+    val transition=updateTransition(targetState=boxState,
+        label="Color and Motion")
+    val animatedColor:Color by transition.animateColor(
+        transitionSpec = {
+            tween(4000)
+        }, label="colorAnimation"
+    ){
+        state-> when(state){
+            BoxPosition.End -> Color.Magenta
+        BoxPosition.Start -> Color.Red
+        }
+    }
+    val animatedOffset:Dp by transition.animateDp(
+        transitionSpec = {
+            tween(4000)
+        },label="offsetAnimation"
+    ){
+        state->when(state){
+            BoxPosition.Start -> 0.dp
+        BoxPosition.End -> screenWidth-70.dp
+        }
+    }
+    Column(Modifier.fillMaxWidth()){
+        Box(
+            modifier= Modifier
+                .offset(x=animatedOffset,y=20.dp)
+                .size(70.dp)
+                .background(animatedColor)
+        )
+        Spacer(Modifier.height(50.dp))
+        Button(
+            onClick={
+                boxState=when(boxState){
+                    BoxPosition.Start -> BoxPosition.End
+                    BoxPosition.End -> BoxPosition.Start
+                }
+            },
+            modifier = Modifier.padding(20.dp).align(Alignment.CenterHorizontally)
+        ){
+            Text(text="StartAnimation")
+        }
+    }
+}
 @Composable
 fun ColorChangeDemo() {
     var colorState by remember { mutableStateOf(BoxColor.Red) }
@@ -100,8 +172,6 @@ fun ColorChangeDemo() {
                 .size(200.dp)
                 .background(animatedColor)
         )
-
-
         Button(
             onClick = {
                 colorState = when (colorState) {
